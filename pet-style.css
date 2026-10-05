@@ -615,3 +615,154 @@ body.in-house #food-bar { display: none; }
     .player-card .pc-icon { font-size: 32px; }
     .start-panel h1 { font-size: 30px; }
 }
+
+/* =============================================================
+   平板 / 手機版面
+   body.compact    觸控裝置或窄螢幕 (iPad 也是)
+   body.phone      手機 (寬 ≤ 600 或高 ≤ 500)
+   body.phone-land 手機橫拿
+   ============================================================= */
+.btn-row button i { font-style: normal; }
+.btn-row button span { margin-left: 4px; }
+.btn-row { position: relative; }
+body:not(.compact) .menu-only { display: none !important; }
+.more-btn { background: #8e7cf0 !important; box-shadow: 0 3px 0 #6a58c8, 0 6px 12px rgba(0,0,0,0.18) !important; }
+.more-btn.active { background: var(--pink) !important; }
+#more-menu {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 30;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+    width: 300px; max-width: calc(100vw - 24px); padding: 12px;
+    background: var(--card); border-radius: 18px; border: 3px solid #b7a3ff;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    animation: slideIn .18s ease-out;
+}
+#more-menu button { width: 100%; text-align: left; white-space: nowrap; }
+#more-menu.hidden { display: none !important; }
+
+/* 觸控：按鈕大一點好按，不要有「按住變大」的殘影 */
+body.touch button, body.touch .back-btn { touch-action: manipulation; }
+@media (hover: none) {
+    .btn-row button:hover, .food-btn:hover, .back-btn:hover, .snd-btn:hover { transform: none; }
+}
+body.compact .btn-row button { min-height: 44px; font-size: 14px; padding: 8px 10px; }
+
+/* 瀏海 / 底部橫條 (iPhone、iPad) */
+.back-btn { top: calc(14px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); }
+#food-bar, #house-bar, #build-bar { margin-bottom: env(safe-area-inset-bottom); }
+
+/* ---------- compact：iPad 與窄螢幕 ---------- */
+body.compact .hud-top {
+    top: calc(12px + env(safe-area-inset-top)); left: calc(150px + env(safe-area-inset-left)); right: calc(14px + env(safe-area-inset-right));
+    flex-direction: row; align-items: flex-start;
+}
+body.compact .btn-row { flex: 1 1 auto; justify-content: flex-start; }
+/* 狀態框變成細細一條 */
+body.compact .hud-top .status-box { width: 250px; max-width: none; padding: 6px 10px; border-radius: 14px; }
+body.compact .status-head { gap: 9px; font-size: 13px; margin-bottom: 4px; }
+body.compact .status-head b { font-size: 14px; }
+body.compact .time-bar { height: 16px; }
+body.compact #time-text { font-size: 11px; }
+/* 樂園裡的聲音開關收進「更多」，選單畫面時放右上角 */
+body.compact.in-park #sound-ctl { display: none; }
+body.compact #sound-ctl { top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); bottom: auto; flex-direction: row; }
+body.compact .snd-btn { padding: 6px 10px; font-size: 18px; }
+body.compact .snd-btn span { display: none; }
+body.compact #toasts { top: calc(78px + env(safe-area-inset-top)); }
+body.compact #pet-panel { bottom: calc(104px + env(safe-area-inset-bottom)); }
+body.compact .food-btn { width: 60px; height: 64px; }
+body.compact #food-bar { scrollbar-width: none; }
+body.compact #food-bar::-webkit-scrollbar { display: none; }
+/* 說明：觸控和滑鼠顯示不同的操作方式 */
+.tip-touch { display: none; }
+body.touch .tip-touch { display: list-item; }
+body.touch .tip-mouse { display: none; }
+
+/* 中間寬度 (iPad 直拿)：狀態框換到下一行 */
+@media (max-width: 1000px) {
+    body.compact .hud-top { flex-wrap: wrap; }
+    body.compact .hud-top .status-box { flex: 1 1 100%; width: auto; max-width: 520px; order: 3; }
+}
+
+/* ---------- 手機 ---------- */
+body.phone .back-btn { padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 18px; top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); }
+body.phone .back-btn span { display: none; }
+body.phone .hud-top { top: calc(8px + env(safe-area-inset-top)); left: calc(58px + env(safe-area-inset-left)); right: calc(8px + env(safe-area-inset-right)); gap: 6px; flex-wrap: wrap; }
+body.phone .btn-row { gap: 5px; flex-wrap: nowrap; }
+body.phone .btn-row > button { width: 42px; min-height: 42px; height: 42px; padding: 0; border-radius: 13px; font-size: 19px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+body.phone .btn-row > button span { display: none; }
+body.phone #more-menu { width: min(300px, calc(100vw - 20px)); right: auto; left: 0; }
+body.phone #more-menu button { font-size: 14px; min-height: 42px; }
+body.phone .hud-top .status-box { flex: 1 1 100%; width: auto; max-width: none; order: 3; padding: 5px 9px; }
+body.phone .status-head { font-size: 12px; gap: 8px; margin-bottom: 3px; }
+body.phone .time-bar { height: 12px; }
+body.phone #time-text { font-size: 9px; }
+body.phone #toasts { top: calc(110px + env(safe-area-inset-top)); }
+body.phone .toast { font-size: 13px; padding: 7px 12px; }
+body.phone #send-banner { top: calc(112px + env(safe-area-inset-top)); font-size: 14px; padding: 8px 14px; width: max-content; max-width: calc(100vw - 20px); white-space: normal; }
+
+/* 食物列：小圓圖示一排 */
+body.phone #food-bar { bottom: 8px; padding: 6px; gap: 5px; border-radius: 18px; max-width: calc(100vw - 16px); }
+body.phone .food-btn { width: 46px; height: 50px; border-radius: 12px; }
+body.phone .food-btn .fe { font-size: 22px; }
+body.phone .food-btn .fn { font-size: 9px; }
+
+/* 寵物卡：從下面滑上來的抽屜，上面還看得到動物 */
+body.phone #pet-panel {
+    left: 0; right: 0; width: auto; max-width: none;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    max-height: 46vh; overflow-y: auto;
+    border-radius: 22px 22px 0 0; border-width: 3px 0 0;
+    padding: 10px 14px 10px;
+    animation: sheetUp .22s ease-out;
+}
+@keyframes sheetUp { from { transform: translateY(30px); opacity: 0; } }
+body.phone #pet-panel::before { content: ''; display: block; width: 44px; height: 5px; border-radius: 3px; background: #e2d6c2; margin: 0 auto 6px; }
+body.phone #pp-title { font-size: 17px; }
+body.phone #pp-sub, body.phone #pp-eats { font-size: 12px; margin: 1px 0 4px; }
+body.phone #pp-bars { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; }
+body.phone .bar-row { margin: 2px 0; font-size: 12px; }
+body.phone .bar-row span { width: 46px; }
+body.phone .pp-actions { gap: 6px; }
+body.phone .pp-actions button { flex: 1 1 calc(33% - 6px); padding: 7px 4px; font-size: 13px; }
+body.phone .pp-x { font-size: 22px; top: 6px; right: 10px; }
+
+/* 小主人的家、佈置列 */
+body.phone #house-bar { bottom: 8px; padding: 8px 10px; gap: 6px; border-width: 3px; }
+body.phone .hb-title { font-size: 15px; }
+body.phone .hb-hint { display: none; }
+body.phone .hb-floor { font-size: 13px; padding: 7px 9px; }
+body.phone #build-bar { bottom: 8px; padding: 8px; }
+
+/* ---------- 手機橫拿：畫面很矮，所有東西都要扁 ---------- */
+body.phone-land .hud-top { flex-wrap: nowrap; align-items: center; }
+body.phone-land .hud-top .status-box { flex: 0 1 300px; order: 0; }
+body.phone-land #toasts { top: calc(58px + env(safe-area-inset-top)); }
+body.phone-land #send-banner { top: calc(58px + env(safe-area-inset-top)); }
+body.phone-land .food-btn { width: 42px; height: 42px; }
+body.phone-land .food-btn .fn { display: none; }
+body.phone-land .food-btn .fe { font-size: 22px; }
+body.phone-land #food-bar { padding: 5px; }
+/* 寵物卡改成左側的直條 */
+body.phone-land #pet-panel {
+    left: calc(8px + env(safe-area-inset-left)); right: auto; width: 340px;
+    top: calc(58px + env(safe-area-inset-top)); bottom: calc(62px + env(safe-area-inset-bottom)); max-height: none;
+    border-radius: 18px; border-width: 3px;
+}
+body.phone-land #pet-panel::before { display: none; }
+body.phone-land #pp-bars { grid-template-columns: 1fr 1fr; }
+body.phone-land #pp-love { font-size: 12px; }
+body.phone-land .pp-actions { gap: 4px; flex-wrap: nowrap; }
+body.phone-land .pp-actions button { flex: 1 1 0; min-width: 0; min-height: 36px; padding: 4px 2px; font-size: 11px; line-height: 1.2; }
+body.touch .pp-actions button { min-height: 40px; }
+body.touch .pp-x { padding: 6px 8px; }
+@media (max-width: 1000px) {
+    body.compact:not(.phone) .btn-row { gap: 6px; }
+    body.compact:not(.phone) .btn-row > button { font-size: 13px; padding: 8px 8px; }
+    body.compact:not(.phone) .btn-row > button span { margin-left: 3px; }
+    body.compact:not(.phone) .hud-top { left: calc(140px + env(safe-area-inset-left)); }
+}
+@media (max-width: 1000px) { body.compact:not(.phone) #toasts { top: calc(126px + env(safe-area-inset-top)); } }
+/* 觸控：可以捲動的地方要允許手指捲動 (整頁本身禁止捲動) */
+.game-modal, #shop-panel, .panel, #pet-panel, #more-menu, .overlay, #help-tip { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+#food-bar, .bb-list, #build-bar { touch-action: pan-x; }
+body.phone #adopt-go, body.phone #adopt-cancel, body.phone #kid-cancel { white-space: nowrap; font-size: 16px; padding-left: 14px; padding-right: 14px; }

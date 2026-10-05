@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>寵物領養樂園 3D</title>
     <link rel="stylesheet" href="pet-style.css">
 </head>
@@ -10,7 +10,7 @@
     <!-- 3D 畫面 -->
     <canvas id="scene"></canvas>
 
-    <a href="lobby.html" class="back-btn">⬅️ 回大廳</a>
+    <a href="lobby.html" class="back-btn">⬅️<span> 回大廳</span></a>
 
     <!-- 聲音開關 -->
     <div id="sound-ctl">
@@ -22,18 +22,22 @@
     <div id="hud" class="hidden">
         <div class="hud-top">
             <div class="btn-row" id="hud-buttons">
-                <button data-act="adopt">➕ 再領養</button>
-                <button data-act="kid">👤 換主人</button>
-                <button data-act="water">💧 加水</button>
-                <button data-act="shop">🏪 小吃店</button>
-                <button data-act="quests" id="btn-quests">📋 任務</button>
-                <button data-act="book">📖 圖鑑</button>
-                <button data-act="build">🏗️ 佈置</button>
-                <button data-act="home">🏠 回家</button>
-                <button data-act="send" id="btn-send">🎁 送人</button>
-                <button data-act="labels" title="顯示 / 隱藏名牌">🏷️ 名牌</button>
-                <button data-act="camera" title="重設視角">📷 視角</button>
-                <button data-act="quality" id="btn-quality" title="切換畫質">✨ 畫質：高</button>
+                <button data-act="adopt"><i>➕</i><span>再領養</span></button>
+                <button data-act="kid"><i>👤</i><span>換主人</span></button>
+                <button data-act="water"><i>💧</i><span>加水</span></button>
+                <button data-act="shop"><i>🏪</i><span>小吃店</span></button>
+                <button data-act="quests" id="btn-quests"><i>📋</i><span>任務</span></button>
+                <button data-act="book"><i>📖</i><span>圖鑑</span></button>
+                <button data-act="build"><i>🏗️</i><span>佈置</span></button>
+                <button data-act="home"><i>🏠</i><span>回家</span></button>
+                <button data-act="send" id="btn-send"><i>🎁</i><span>送人</span></button>
+                <button data-act="labels" title="顯示 / 隱藏名牌"><i>🏷️</i><span>名牌</span></button>
+                <button data-act="camera" title="重設視角"><i>📷</i><span>視角</span></button>
+                <button data-act="quality" id="btn-quality" title="切換畫質"><i>✨</i><span>畫質：高</span></button>
+                <button data-act="music" id="menu-music" class="menu-only"><i>🎵</i><span>音樂 開</span></button>
+                <button data-act="sfx" id="menu-sfx" class="menu-only"><i>🔊</i><span>音效 開</span></button>
+                <button data-act="more" id="btn-more" class="more-btn" title="更多功能"><i>☰</i><span>更多</span></button>
+                <div id="more-menu" class="hidden"></div>
             </div>
             <div class="status-box">
                 <div class="status-head"><b id="day-label">第 1 天</b><span id="coin-stat" title="金幣：摸摸動物、讓牠們開心、迎接新寶寶都能賺">🪙 0</span><span id="pet-count"></span><span id="water-stat"></span></div>
@@ -113,7 +117,8 @@
         <div id="help-tip" class="hidden">
             <b>🎮 怎麼玩</b>
             <ul>
-                <li>🖱️ 拖曳畫面：旋轉視角｜右鍵拖曳：移動視角｜滾輪：縮放</li>
+                <li class="tip-mouse">🖱️ 拖曳畫面：旋轉視角｜右鍵拖曳：移動視角｜滾輪：縮放</li>
+                <li class="tip-touch">☝️ 一指拖曳：移動地圖｜🤏 兩指捏：縮放｜🔄 兩指轉：旋轉｜⬆️ 兩指上下推：調整角度</li>
                 <li>👆 點地面：主人走過去｜點動物：摸摸牠、看狀態</li>
                 <li>🛝 點溜滑梯 / 🎡 摩天輪：主人去玩｜點水槽：加水</li>
                 <li>🍖 點下方食物：丟在主人腳邊餵動物</li>

@@ -242,7 +242,8 @@
 
     // ---------- 畫質 / 後製 (環境遮蔽 SSAO + 夜晚光暈 Bloom + 抗鋸齒) ----------
     const hasPost = !!(THREE.EffectComposer && THREE.SSAOPass && THREE.UnrealBloomPass && THREE.ShaderPass);
-    const isTouch = matchMedia('(pointer: coarse)').matches;
+    // 觸控裝置 (iPad / 手機)。網址加 ?touch=1 可以在電腦上模擬
+    const isTouch = matchMedia('(pointer: coarse)').matches || /[?&]touch=1/.test(location.search);
     let quality = 'high';
     try { quality = localStorage.getItem('petQuality') || (isTouch ? 'normal' : 'high'); } catch (e) { /* ignore */ }
     if (!hasPost) quality = 'normal';
@@ -277,9 +278,12 @@
         fxaaPass = new THREE.ShaderPass(THREE.FXAAShader);
         composer.addPass(fxaaPass);
     }
+    let perfScale = 1;            // 自動降低解析度 (跑不動時)
     function applyQuality() {
         const high = quality === 'high';
-        renderer.setPixelRatio(Math.min(high ? 1.5 : 2, window.devicePixelRatio || 1));
+        // 解析度：手機 / 平板的螢幕很細，全解析度太吃力 → 設上限；跑不動時會再自動降低 (perfScale)
+        const cap = isTouch ? (high ? 1.5 : 1.25) : (high ? 1.5 : 1.5);
+        renderer.setPixelRatio(Math.max(0.75, Math.min(cap, window.devicePixelRatio || 1) * perfScale));
         const newType = high ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
         if (renderer.shadowMap.type !== newType) {
             renderer.shadowMap.type = newType;
@@ -290,7 +294,7 @@
         if (high) buildComposer();
         onResize();
         const b = document.getElementById('btn-quality');
-        if (b) b.textContent = high ? '✨ 畫質：高' : '⚡ 畫質：一般';
+        if (b) b.innerHTML = high ? '<i>✨</i><span>畫質：高</span>' : '<i>⚡</i><span>畫質：一般</span>';
     }
 
     // 夜晚時降低環境光反射
@@ -2255,9 +2259,11 @@
         cam.target.set(f.x + (t.x - f.x) * k, f.y + (t.y - f.y) * k, f.z + (t.z - f.z) * k);
         if (camAnim.t >= 1) camAnim = null;
     }
+    // 直的螢幕比較窄 → 鏡頭拉遠一點，整間房子才放得下
+    function houseDist() { const a = window.innerWidth / window.innerHeight; return a < 1 ? 17 * Math.min(2, 0.95 / a) : 17; }
     function houseViewCam() {
         const q = house.L(0, 0.3);
-        return { yaw: house.rot, pitch: 0.82, dist: 17, x: q.x, y: house.floorY(kid && kid.floor || 1) + 0.8, z: q.z };
+        return { yaw: house.rot, pitch: 0.82, dist: houseDist(), x: q.x, y: house.floorY(kid && kid.floor || 1) + 0.8, z: q.z };
     }
     function enterHouseView() {
         houseMode = true;
@@ -3068,40 +3074,122 @@
     // ---------------------------------------------------------
     const pointers = new Map();
     let drag = null, pinchDist = 0;
+    let gesture = null;               // 兩指手勢 (觸控)
+    let camVel = null;                // 放開手指後的慣性滑動
+    let lastTapType = 'mouse';
     function pinch() {
         const ps = [...pointers.values()];
         return Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) || 1;
     }
+    function camLimits() {
+        return houseMode ? { x0: house.x - 3, x1: house.x + 3, z0: house.z - 3, z1: house.z + 3 } : { x0: -36, x1: 36, z0: -23, z1: 23 };
+    }
+    function clampTarget() {
+        const lim = camLimits();
+        cam.target.x = clamp(cam.target.x, lim.x0, lim.x1);
+        cam.target.z = clamp(cam.target.z, lim.z0, lim.z1);
+    }
+    const distMin = () => (houseMode ? 7 : 14), distMax = () => (houseMode ? Math.max(32, houseDist() + 6) : 115);
+    // 螢幕上的點 → 地面上的點 (地面高度 = 鏡頭看的高度)
+    const panPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const panV = new THREE.Vector3();
+    function groundAt(cx, cy) {
+        const rect = canvas.getBoundingClientRect();
+        ndc.set(((cx - rect.left) / rect.width) * 2 - 1, -((cy - rect.top) / rect.height) * 2 + 1);
+        raycaster.setFromCamera(ndc, camera);
+        panPlane.constant = -cam.target.y;
+        const hit = raycaster.ray.intersectPlane(panPlane, panV);
+        if (!hit || panV.distanceTo(camera.position) > 400) return null;
+        return { x: panV.x, z: panV.z };
+    }
+    // 抓著地面拖：手指下的那個點會一直跟著手指
+    function panByScreen(x0, y0, x1, y1) {
+        const a = groundAt(x0, y0), b = groundAt(x1, y1);
+        let dx, dz;
+        if (a && b) { dx = a.x - b.x; dz = a.z - b.z; }
+        else {
+            const k = cam.dist * 0.0016, r = camRight(), f = camFront();
+            dx = -(r.x * (x1 - x0) + f.x * (y1 - y0)) * k; dz = -(r.z * (x1 - x0) + f.z * (y1 - y0)) * k;
+        }
+        cam.target.x += dx; cam.target.z += dz;
+        clampTarget();
+        return { x: dx, z: dz };
+    }
+    function syncCamera() { updateCamera(); camera.updateMatrixWorld(); }
+
     canvas.addEventListener('pointerdown', e => {
-        canvas.setPointerCapture(e.pointerId);
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 模擬的觸控沒有實體指標 */ }
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+        camVel = null;
+        const touch = e.pointerType !== 'mouse';
         if (pointers.size === 1) {
-            drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, button: e.button, pan: e.button === 2 || e.button === 1 || e.shiftKey };
+            drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), moved: false,
+                button: e.button, touch, vx: 0, vz: 0,
+                pan: touch || e.button === 2 || e.button === 1 || e.shiftKey };
         } else if (pointers.size === 2) {
             if (drag) drag.moved = true;
             pinchDist = pinch();
+            const ps = [...pointers.values()];
+            gesture = { mode: null, mx: (ps[0].x + ps[1].x) / 2, my: (ps[0].y + ps[1].y) / 2, d0: pinchDist, d: pinchDist,
+                a: Math.atan2(ps[1].y - ps[0].y, ps[1].x - ps[0].x), a0: 0, start: ps.map(p => ({ x: p.x, y: p.y })) };
+            gesture.a0 = gesture.a;
         }
     });
     canvas.addEventListener('pointermove', e => {
-        if (!pointers.has(e.pointerId)) { hoverCheck(e); return; }
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 2) {
-            const d = pinch();
-            cam.dist = clamp(cam.dist * pinchDist / d, houseMode ? 7 : 14, houseMode ? 32 : 115);
-            pinchDist = d;
+        if (!pointers.has(e.pointerId)) { if (e.pointerType === 'mouse') hoverCheck(e); return; }
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+        if (pointers.size >= 2) {
+            const ps = [...pointers.values()].slice(0, 2);
+            const d = Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) || 1;
+            if (ps[0].type === 'mouse' || !gesture) {
+                cam.dist = clamp(cam.dist * pinchDist / d, distMin(), distMax());
+                pinchDist = d;
+                return;
+            }
+            const g = gesture;
+            const mx = (ps[0].x + ps[1].x) / 2, my = (ps[0].y + ps[1].y) / 2;
+            const a = Math.atan2(ps[1].y - ps[0].y, ps[1].x - ps[0].x);
+            if (!g.mode) {
+                // 先判斷手勢：兩指一起上下推 = 調整俯角；其他 = 縮放 / 旋轉 / 移動
+                const m0 = { x: ps[0].x - g.start[0].x, y: ps[0].y - g.start[0].y };
+                const m1 = { x: ps[1].x - g.start[1].x, y: ps[1].y - g.start[1].y };
+                const dd = Math.abs(d - g.d0) / g.d0, da = Math.abs(wrapAngle(a - g.a0));
+                const moved = Math.hypot(mx - (g.start[0].x + g.start[1].x) / 2, my - (g.start[0].y + g.start[1].y) / 2);
+                const vertical = m0.y * m1.y > 0 && Math.abs(m0.y) > Math.abs(m0.x) * 1.4 && Math.abs(m1.y) > Math.abs(m1.x) * 1.4;
+                if (vertical && dd < 0.08 && da < 0.12 && moved > 14) g.mode = 'tilt';
+                else if (dd > 0.06 || da > 0.1 || moved > 14) g.mode = 'move';
+                else return;
+            }
+            if (g.mode === 'tilt') {
+                cam.pitch = clamp(cam.pitch + (my - g.my) * 0.005, 0.32, 1.4);
+            } else {
+                // 以兩指中間為中心縮放、旋轉，兩指一起移動 = 移動地圖
+                syncCamera();
+                const anchor = groundAt(g.mx, g.my);
+                cam.dist = clamp(cam.dist * g.d / d, distMin(), distMax());
+                cam.yaw += wrapAngle(a - g.a);
+                syncCamera();
+                const now = groundAt(mx, my);
+                if (anchor && now) { cam.target.x += anchor.x - now.x; cam.target.z += anchor.z - now.z; clampTarget(); }
+            }
+            g.mx = mx; g.my = my; g.d = d; g.a = a;
             return;
         }
         if (!drag) return;
         const dx = e.clientX - drag.lx, dy = e.clientY - drag.ly;
-        drag.lx = e.clientX; drag.ly = e.clientY;
-        if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 7) drag.moved = true;
+        const limit = drag.touch ? 12 : 7;          // 手指會微微晃動，觸控要拖遠一點才算拖曳
+        if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > limit) drag.moved = true;
         if (!drag.moved) return;
+        const px = drag.lx, py = drag.ly;
+        drag.lx = e.clientX; drag.ly = e.clientY;
         if (drag.pan) {
-            const k = cam.dist * 0.0016;
-            const r = camRight(), f = camFront();
-            const lim = houseMode ? { x0: house.x - 3, x1: house.x + 3, z0: house.z - 3, z1: house.z + 3 } : { x0: -36, x1: 36, z0: -23, z1: 23 };
-            cam.target.x = clamp(cam.target.x - r.x * dx * k - f.x * dy * k, lim.x0, lim.x1);
-            cam.target.z = clamp(cam.target.z - r.z * dx * k - f.z * dy * k, lim.z0, lim.z1);
+            syncCamera();
+            const mv = panByScreen(px, py, e.clientX, e.clientY);
+            const t = performance.now(), dtm = Math.max(8, t - drag.lt);
+            drag.lt = t;
+            // 記錄拖曳速度 (給放開後的慣性用)
+            drag.vx = drag.vx * 0.6 + (mv.x / dtm * 1000) * 0.4;
+            drag.vz = drag.vz * 0.6 + (mv.z / dtm * 1000) * 0.4;
         } else {
             cam.yaw -= dx * 0.006;
             cam.pitch = clamp(cam.pitch + dy * 0.004, 0.32, 1.4);
@@ -3110,15 +3198,38 @@
     function endPointer(e) {
         if (!pointers.has(e.pointerId)) return;
         pointers.delete(e.pointerId);
-        if (drag && !drag.moved && pointers.size === 0 && drag.button === 0) handleClick(e.clientX, e.clientY);
-        if (pointers.size === 0) drag = null;
+        if (drag && !drag.moved && pointers.size === 0 && (drag.button === 0 || drag.touch)) {
+            lastTapType = drag.touch ? 'touch' : 'mouse';
+            handleClick(e.clientX, e.clientY);
+        }
+        if (pointers.size === 1) {
+            // 兩指放開一指 → 剩下那指接著拖，不會跳
+            const p = [...pointers.values()][0];
+            gesture = null;
+            if (drag) { drag.lx = p.x; drag.ly = p.y; drag.lt = performance.now(); drag.vx = 0; drag.vz = 0; if (drag.touch) drag.pan = true; }
+        }
+        if (pointers.size === 0) {
+            if (drag && drag.moved && drag.pan && drag.touch && performance.now() - drag.lt < 90 && Math.hypot(drag.vx, drag.vz) > 2) {
+                camVel = { x: drag.vx, z: drag.vz };
+            }
+            drag = null; gesture = null;
+        }
+    }
+    // 慣性：放開手指後地圖再滑一下
+    function updateCamInertia(dt) {
+        if (!camVel || pointers.size) return;
+        cam.target.x += camVel.x * dt; cam.target.z += camVel.z * dt;
+        clampTarget();
+        const k = Math.exp(-dt * 4.5);
+        camVel.x *= k; camVel.z *= k;
+        if (Math.hypot(camVel.x, camVel.z) < 0.3) camVel = null;
     }
     canvas.addEventListener('pointerup', endPointer);
     canvas.addEventListener('pointercancel', endPointer);
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('wheel', e => {
         e.preventDefault();
-        cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.0012), houseMode ? 7 : 14, houseMode ? 32 : 115);
+        cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.0012), distMin(), distMax());
     }, { passive: false });
 
     const ndc = new THREE.Vector2();
@@ -3159,6 +3270,20 @@
         canvas.style.cursor = (k && k !== 'ground') ? 'pointer' : 'grab';
     }
 
+    const projV = new THREE.Vector3();
+    function nearestPetOnScreen(cx, cy, maxPx) {
+        const rect = canvas.getBoundingClientRect();
+        let best = null, bd = maxPx;
+        pets.forEach(p => {
+            if (p.state === 'BEING_SENT' || p.indoor || !p.model.visible) return;
+            projV.set(p.pos.x, p.pos.y + 0.5 * petScale(p), p.pos.z).project(camera);
+            if (projV.z > 1) return;
+            const sx = rect.left + (projV.x + 1) / 2 * rect.width, sy = rect.top + (1 - projV.y) / 2 * rect.height;
+            const d = Math.hypot(sx - cx, sy - cy);
+            if (d < bd) { bd = d; best = p; }
+        });
+        return best;
+    }
     function handleClick(cx, cy) {
         if (gameState !== 'PARK' || !kid) return;
         if (houseMode) { handleHouseClick(cx, cy); return; }
@@ -3168,6 +3293,11 @@
             const dh = hits.find(h => h.object.userData.pick && h.object.userData.pick.kind === 'deco');
             if (gp) build.onClick(gp.x, gp.z, dh ? dh.object.userData.pick.deco : null);
             return;
+        }
+        // 手指點的時候比較寬容：附近有動物就算點到牠
+        if (lastTapType === 'touch' && !hits.some(h => h.object.userData.pick && h.object.userData.pick.kind === 'pet')) {
+            const near = nearestPetOnScreen(cx, cy, 34);
+            if (near) { onPetClick(near); return; }
         }
         for (const h of hits) {
             const pk = h.object.userData.pick;
@@ -3345,11 +3475,48 @@
         });
     }
 
+    // ---------- 依裝置調整版面 (平板 / 手機) ----------
+    //  compact：觸控裝置或比較窄的螢幕 → 少用的按鈕收進「☰ 更多」
+    //  phone：手機 → 按鈕只顯示圖示、寵物卡從下面滑上來
+    const HUD_PRIO = { adopt: 1, water: 1, shop: 1, quests: 1, home: 1, book: 2, build: 2, kid: 3, send: 3, labels: 3, camera: 3, quality: 3, music: 3, sfx: 3 };
+    const hudBtnList = [...document.querySelectorAll('#hud-buttons > button[data-act]')].filter(b => b.dataset.act !== 'more');
+    function applyLayout() {
+        const w = window.innerWidth, h = window.innerHeight;
+        const phone = w <= 600 || h <= 500;
+        const compact = isTouch || w <= 1024 || phone;
+        const body = document.body;
+        body.classList.toggle('compact', compact);
+        body.classList.toggle('phone', phone);
+        body.classList.toggle('phone-land', phone && w > h);
+        body.classList.toggle('touch', isTouch);
+        const row = $('hud-buttons'), menu = $('more-menu'), more = $('btn-more');
+        hudBtnList.forEach(b => {
+            const p = HUD_PRIO[b.dataset.act] || 1;
+            const toMenu = compact && (p === 3 || (p === 2 && phone));
+            if (toMenu) menu.appendChild(b); else row.insertBefore(b, more);
+        });
+        more.classList.toggle('hidden', !compact);
+        if (!compact) toggleMoreMenu(false);
+    }
+    function toggleMoreMenu(force) {
+        const menu = $('more-menu');
+        const open = force === undefined ? menu.classList.contains('hidden') : force;
+        menu.classList.toggle('hidden', !open);
+        $('btn-more').classList.toggle('active', open);
+    }
+    window.addEventListener('resize', applyLayout);
+    applyLayout();
+    canvas.addEventListener('pointerdown', () => toggleMoreMenu(false));
+
     $('hud-buttons').addEventListener('click', e => {
         const btn = e.target.closest('button');
         if (!btn) return;
-        Audio3D.sfx('click');
         const act = btn.dataset.act;
+        if (act === 'more') { Audio3D.sfx('click'); toggleMoreMenu(); return; }
+        if (act === 'music') { $('btn-music').click(); return; }
+        if (act === 'sfx') { $('btn-sfx').click(); return; }
+        Audio3D.sfx('click');
+        if (btn.parentNode.id === 'more-menu') toggleMoreMenu(false);
         if (act === 'adopt') openAdoptMenu(true);
         else if (act === 'kid') openKidMenu(true);
         else if (act === 'water') kidAddWater();
@@ -3414,6 +3581,14 @@
         love.className = bs.ok ? 'ok' : '';
     }
     $('pp-close').addEventListener('click', closePetPanel);
+    // 手機：寵物卡往下滑就關掉
+    (function () {
+        const el = $('pet-panel');
+        let sy = null;
+        el.addEventListener('pointerdown', e => { sy = (e.pointerType !== 'mouse' && el.scrollTop <= 0) ? e.clientY : null; });
+        el.addEventListener('pointerup', e => { if (sy !== null && e.clientY - sy > 70 && document.body.classList.contains('phone')) closePetPanel(); sy = null; });
+        el.addEventListener('pointercancel', () => { sy = null; });
+    })();
     $('shop-close').addEventListener('click', () => { Audio3D.sfx('click'); closeShop(); });
     $('quest-close').addEventListener('click', () => { Audio3D.sfx('click'); closeQuests(); });
     $('book-close').addEventListener('click', () => { Audio3D.sfx('click'); closeBook(); });
@@ -3559,6 +3734,7 @@
         $('menu-kid').classList.toggle('hidden', state !== 'SELECT_KID');
         $('menu-adopt').classList.toggle('hidden', state !== 'ADOPT_PET');
         hud.classList.toggle('hidden', state !== 'PARK');
+        document.body.classList.toggle('in-park', state === 'PARK');
         if (state !== 'PARK') { setSendMode(false); }
         if (state === 'PARK') updateFoodHints();
     }
@@ -3946,7 +4122,7 @@
             if (vf !== house.viewFloor) { house.viewFloor = vf; renderHouseBar(); }
             if (!camAnim) cam.target.y += (house.floorY(vf) + 0.8 - cam.target.y) * Math.min(1, dt * 3);
             // ä¿éªï¼é¡é ­è·é¢æ¿å­å°±é£åä¾
-            if (!camAnim && (Math.hypot(cam.target.x - house.x, cam.target.z - house.z) > 4.5 || cam.dist > 33)) animateCam(houseViewCam(), 0.8);
+            if (!camAnim && (Math.hypot(cam.target.x - house.x, cam.target.z - house.z) > 4.5 || cam.dist > distMax() + 1)) animateCam(houseViewCam(), 0.8);
         }
         const scrubbing = pets.some(p => p.state === 'BATH' && (p.data.phase === 'soak' || p.data.phase === 'scrub' || p.data.phase === 'rinse'));
         world.bath.foam += ((scrubbing ? 1 : 0.12) - world.bath.foam) * Math.min(1, dt * 1.5);
@@ -3978,6 +4154,25 @@
     }
 
     let last = performance.now();
+    // ---------- 自動調整畫質：連續幾秒很卡就降一級 ----------
+    let perfLast = 0, perfAcc = 0, perfFrames = 0, perfBad = 0, perfStage = 0;
+    function watchPerformance(ms) {
+        if (gameState !== 'PARK' || document.hidden || ms <= 0 || ms > 250) return;   // 切到背景或卡一下不算
+        perfAcc += ms; perfFrames++;
+        if (perfAcc < 4000) return;
+        const fps = perfFrames * 1000 / perfAcc;
+        perfAcc = 0; perfFrames = 0;
+        perfBad = fps < 32 ? perfBad + 1 : 0;
+        if (perfBad < 2 || perfStage >= 3) return;
+        perfBad = 0; perfStage++;
+        if (quality === 'high') {
+            quality = 'normal';
+            toast('⚡ 畫面有點卡，自動換成「一般」畫質');
+        } else {
+            perfScale = perfStage >= 3 ? 0.6 : 0.8;
+        }
+        applyQuality();
+    }
     function loop(now) {
         const dt = Math.min(0.1, (now - last) / 1000);
         last = now;
@@ -4001,6 +4196,8 @@
         }
         // 選單畫面時相機緩慢環繞
         updateCamAnim(dt);
+        updateCamInertia(dt);
+        watchPerformance(now - perfLast); perfLast = now;
         if (gameState !== 'PARK') cam.yaw += dt * 0.05;
         updateCamera();
         applyEnvIntensity(world.envIntensity);
@@ -4020,6 +4217,10 @@
         s.innerHTML = Audio3D.sfxOn ? '🔊<span>音效 開</span>' : '🔈<span>音效 關</span>';
         m.title = Audio3D.musicOn ? '關閉背景音樂' : '開啟背景音樂';
         s.title = Audio3D.sfxOn ? '關閉寵物叫聲與音效' : '開啟寵物叫聲與音效';
+        // 「更多」選單裡的同一組開關
+        const mm = $('menu-music'), ms = $('menu-sfx');
+        if (mm) mm.innerHTML = Audio3D.musicOn ? '<i>🎵</i><span>音樂 開</span>' : '<i>🔇</i><span>音樂 關</span>';
+        if (ms) ms.innerHTML = Audio3D.sfxOn ? '<i>🔊</i><span>音效 開</span>' : '<i>🔈</i><span>音效 關</span>';
     }
     function initSoundControls() {
         if (!Audio3D.supported) { $('sound-ctl').classList.add('hidden'); return; }
@@ -4069,5 +4270,5 @@
             renderFrame();
         },
         get quests() { return quests; }, get stats() { return stats; }, get book() { return book; }, get achieved() { return achieved; }, get toy() { return activeToy; }, inventory, throwToy, openQuests, openBook, buyItem, SHOP_ITEMS, giveBirth, openPetPanel, sendToBath, build, kidPlay, house, birds, balloon, kidGoHome, kidLeaveHome, useFurniture, kidHomeWalk, get houseMode() { return houseMode; }, setFavorite(uid) { favoriteUid = uid; },
-        cam, world, renderer, scene, weather, spawnRainbow, dropFood, startDelivery, addCoins, openShop, kidSit, kidFeedFish, kidPlay, kidGoShop, get coins() { return coins; }, get water() { return waterLevel; }, get eagle() { return eagle; } };
+        cam, camera, world, renderer, scene, weather, spawnRainbow, dropFood, startDelivery, addCoins, openShop, kidSit, kidFeedFish, kidPlay, kidGoShop, get coins() { return coins; }, get water() { return waterLevel; }, get eagle() { return eagle; } };
 })();
