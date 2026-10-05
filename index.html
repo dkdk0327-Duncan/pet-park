@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小遊戲歡樂大廳</title>
+    <link rel="stylesheet" href="lobby-style.css">
+</head>
+<body>
+    <!-- 會動的背景 -->
+    <div class="sky" aria-hidden="true">
+        <span class="cloud c1"></span><span class="cloud c2"></span><span class="cloud c3"></span><span class="cloud c4"></span>
+        <span class="float f1">⭐</span><span class="float f2">🎈</span><span class="float f3">✨</span>
+        <span class="float f4">🌟</span><span class="float f5">🎈</span><span class="float f6">💫</span>
+    </div>
+
+    <main class="lobby">
+        <header class="lobby-head">
+            <h1 class="lobby-title" aria-label="小遊戲歡樂大廳">
+                <span>🌟</span><span>小</span><span>遊</span><span>戲</span><span>歡</span><span>樂</span><span>大</span><span>廳</span><span>🌟</span>
+            </h1>
+            <p class="lobby-subtitle">選一個想玩的遊戲，出發冒險吧！</p>
+        </header>
+
+        <!-- 主打：新世代 3D 寵物樂園 -->
+        <section class="hero" onclick="location.href='pet.html'" tabindex="0" role="link" aria-label="進入寵物領養樂園 3D">
+            <div class="hero-glow" aria-hidden="true"></div>
+            <div class="hero-info">
+                <div class="badges">
+                    <span class="badge new">NEW</span>
+                    <span class="badge gen">✨ 新世代 3D 遊戲</span>
+                </div>
+                <h2 class="hero-title">寵物領養樂園 <em>3D</em></h2>
+                <p class="hero-desc">在立體的大樂園裡領養 20 種可愛動物！陪牠們玩溜滑梯、摩天輪、盪鞦韆，看牠們長大、談戀愛、生寶寶～</p>
+                <ul class="features">
+                    <li>🌦️ 晴天・下雨・下雪・彩虹</li>
+                    <li>🌙 日夜循環</li>
+                    <li>🎵 音樂和寵物叫聲</li>
+                    <li>🏪 小吃店買點心</li>
+                    <li>🐟 池塘餵魚和烏龜</li>
+                    <li>🐣 繁殖與稀有寶寶</li>
+                    <li>🛁 洗澡打扮・🎾 丟接</li>
+                    <li>🏗️ 自己佈置樂園</li>
+                    <li>📋 每日任務・📖 圖鑑</li>
+                    <li>🏠 小主人的家・上床睡覺</li>
+                    <li>🐦 小麻雀・🎈 熱氣球</li>
+                    <li>👨‍👧 每個人有自己的進度</li>
+                </ul>
+                <div class="hero-actions">
+                    <button class="hero-btn">進入 3D 樂園 🚀</button>
+                    <span id="save-info" class="save-info"></span>
+                </div>
+            </div>
+            <div class="hero-stage">
+                <canvas id="hero-canvas" aria-hidden="true"></canvas>
+                <div class="hero-fallback" aria-hidden="true">🐶🐱🐼🐰🐧</div>
+                <span class="stage-tag">即時 3D 預覽</span>
+            </div>
+        </section>
+
+        <h3 class="section-title">🎮 更多經典小遊戲</h3>
+        <div class="games-grid">
+            <a class="game-card" href="recycle.html" style="--c1:#6ec6ff; --c2:#2f8fd8;">
+                <div class="card-top"><span class="game-icon">♻️</span></div>
+                <div class="card-body">
+                    <h2 class="game-name">環保小尖兵</h2>
+                    <p class="game-desc">學習如何分類垃圾，成為愛護地球的小英雄！</p>
+                    <span class="play-btn">開始遊戲</span>
+                </div>
+            </a>
+            <a class="game-card" href="makeup.html" style="--c1:#ffb3d1; --c2:#ff6b9a;">
+                <div class="card-top"><span class="game-icon">🎀</span></div>
+                <div class="card-body">
+                    <h2 class="game-name">可愛化妝換裝</h2>
+                    <p class="game-desc">為小女孩或小兔子挑選最可愛的裝扮與飾品！</p>
+                    <span class="play-btn">開始遊戲</span>
+                </div>
+            </a>
+            <a class="game-card" href="merge.html" style="--c1:#c3a6ff; --c2:#7b5cd6;">
+                <div class="card-top"><span class="game-icon">🐉</span></div>
+                <div class="card-body">
+                    <h2 class="game-name">合體英雄</h2>
+                    <p class="game-desc">合體同等級英雄來升等，打倒 30 關 Boss，成為最強指揮官！</p>
+                    <span class="play-btn">開始遊戲</span>
+                </div>
+            </a>
+            <a class="game-card" href="runner.html" style="--c1:#ffd27a; --c2:#ff8a3c;">
+                <div class="card-top"><span class="game-icon">🏃</span></div>
+                <div class="card-body">
+                    <h2 class="game-name">極速跑酷</h2>
+                    <p class="game-desc">跳躍閃避障礙，左右移動換跑道，挑戰 40 關的極速考驗！</p>
+                    <span class="play-btn">開始遊戲</span>
+                </div>
+            </a>
+        </div>
+
+        <footer class="lobby-foot">🐾 玩累了記得休息一下眼睛喔！</footer>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+    <script src="pet3d-models.js"></script>
+    <script src="pet-profiles.js"></script>
+    <script src="lobby.js"></script>
+</body>
+</html>

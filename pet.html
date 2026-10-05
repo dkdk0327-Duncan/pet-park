@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>寵物領養樂園 3D</title>
+    <link rel="stylesheet" href="pet-style.css">
+</head>
+<body>
+    <!-- 3D 畫面 -->
+    <canvas id="scene"></canvas>
+
+    <a href="lobby.html" class="back-btn">⬅️ 回大廳</a>
+
+    <!-- 聲音開關 -->
+    <div id="sound-ctl">
+        <button id="btn-music" class="snd-btn">🎵<span>音樂 開</span></button>
+        <button id="btn-sfx" class="snd-btn">🔊<span>音效 開</span></button>
+    </div>
+
+    <!-- 樂園介面 -->
+    <div id="hud" class="hidden">
+        <div class="hud-top">
+            <div class="btn-row" id="hud-buttons">
+                <button data-act="adopt">➕ 再領養</button>
+                <button data-act="kid">👤 換主人</button>
+                <button data-act="water">💧 加水</button>
+                <button data-act="shop">🏪 小吃店</button>
+                <button data-act="quests" id="btn-quests">📋 任務</button>
+                <button data-act="book">📖 圖鑑</button>
+                <button data-act="build">🏗️ 佈置</button>
+                <button data-act="home">🏠 回家</button>
+                <button data-act="send" id="btn-send">🎁 送人</button>
+                <button data-act="labels" title="顯示 / 隱藏名牌">🏷️ 名牌</button>
+                <button data-act="camera" title="重設視角">📷 視角</button>
+                <button data-act="quality" id="btn-quality" title="切換畫質">✨ 畫質：高</button>
+            </div>
+            <div class="status-box">
+                <div class="status-head"><b id="day-label">第 1 天</b><span id="coin-stat" title="金幣：摸摸動物、讓牠們開心、迎接新寶寶都能賺">🪙 0</span><span id="pet-count"></span><span id="water-stat"></span></div>
+                <div class="time-bar"><div id="time-fill"></div><span id="time-text"></span></div>
+            </div>
+        </div>
+
+        <div id="send-banner" class="hidden">🐾 請點選要送走的動物（再按一次「送人」取消）</div>
+
+        <div id="pet-panel" class="hidden">
+            <button id="pp-close" class="pp-x" title="關閉">✕</button>
+            <div id="pp-title"></div>
+            <div id="pp-sub"></div>
+            <div id="pp-state"></div>
+            <div id="pp-bars"></div>
+            <div id="pp-eats"></div>
+            <div id="pp-love"></div>
+            <div class="pp-actions">
+                <button id="pp-bath">🛁 洗澡</button>
+                <button id="pp-dress">👗 打扮</button>
+                <button id="pp-rename">✏️ 取名字</button>
+                <button id="pp-send">🎁 送人</button>
+                <button id="pp-fav">🏠 設為最愛</button>
+            </div>
+            <div id="pp-wardrobe" class="hidden"></div>
+        </div>
+
+        <div id="food-bar"></div>
+
+        <!-- 小主人的家 -->
+        <div id="house-bar" class="hidden">
+            <b class="hb-title">🏠 小主人的家</b>
+            <button id="hb-f1" class="hb-floor">1F 客廳・廚房</button>
+            <button id="hb-f2" class="hb-floor">2F 臥室・陽台</button>
+            <span id="hb-hint" class="hb-hint"></span>
+            <button id="hb-exit" class="hb-exit">🚪 出門</button>
+        </div>
+
+        <!-- 每日任務 -->
+        <div id="quest-panel" class="game-modal hidden">
+            <div class="gm-head">
+                <span class="gm-title">📋 每日任務</span>
+                <span id="quest-day" class="gm-chip"></span>
+                <button id="quest-close" class="pp-x" title="關閉">✕</button>
+            </div>
+            <div id="quest-list"></div>
+            <p id="quest-foot" class="gm-foot"></p>
+        </div>
+
+        <!-- 動物圖鑑 / 成就貼紙 -->
+        <div id="book-panel" class="game-modal wide hidden">
+            <div class="gm-head">
+                <span class="gm-title">📖 動物圖鑑</span>
+                <div class="gm-tabs">
+                    <button id="book-tab-pets" class="active">🐾 動物</button>
+                    <button id="book-tab-stickers">🏅 貼紙</button>
+                </div>
+                <button id="book-close" class="pp-x" title="關閉">✕</button>
+            </div>
+            <p id="book-sub" class="gm-sub"></p>
+            <div id="book-grid" class="book-grid"></div>
+        </div>
+
+        <!-- 小吃店 -->
+        <div id="shop-panel" class="hidden">
+            <div class="shop-head">
+                <span class="shop-title">🏪 小吃販賣店</span>
+                <span id="shop-coins" class="shop-coins">🪙 0</span>
+                <button id="shop-close" class="pp-x" title="關閉">✕</button>
+            </div>
+            <p class="shop-sub">👨‍🍳 店員：歡迎光臨！今天想吃點什麼呢？</p>
+            <div id="shop-grid"></div>
+            <p class="shop-tip">💡 摸摸動物、陪牠們玩、迎接新寶寶、每天早上都能拿到金幣喔！</p>
+            <div id="shop-toast"></div>
+        </div>
+
+        <div id="help-tip" class="hidden">
+            <b>🎮 怎麼玩</b>
+            <ul>
+                <li>🖱️ 拖曳畫面：旋轉視角｜右鍵拖曳：移動視角｜滾輪：縮放</li>
+                <li>👆 點地面：主人走過去｜點動物：摸摸牠、看狀態</li>
+                <li>🛝 點溜滑梯 / 🎡 摩天輪：主人去玩｜點水槽：加水</li>
+                <li>🍖 點下方食物：丟在主人腳邊餵動物</li>
+                <li>🪑 點長椅：主人坐下休息｜🏪 點小吃店：買點心｜🐟 點餵魚機：餵池塘的魚</li>
+                <li>💕 一公一母的成年同種動物會生寶寶！</li>
+                <li>📋 每天有新任務｜📖 圖鑑收集動物和稀有寶寶｜🎾 小吃店買玩具跟動物玩丟接</li>
+                <li>🛁 動物髒了帶去洗澡｜👗 幫動物戴配件｜🏗️ 用金幣買裝飾、彈跳床擺在樂園</li>
+                <li>🏠 點左前方的房子回家：看電視、做餅乾、晚上上床睡覺會直接睡到天亮</li>
+            </ul>
+            <button id="tip-close">知道了！</button>
+        </div>
+
+        <div id="toasts"></div>
+        <div id="banners"></div>
+    </div>
+
+    <!-- 開始畫面 -->
+    <div id="menu-start" class="overlay hidden">
+        <div class="panel start-panel">
+            <h1>🐾 寵物領養樂園 🐾</h1>
+            <p class="sub">誰要來玩呢？每個人的樂園進度都是分開的喔！</p>
+            <div id="player-list" class="player-list"></div>
+            <form id="player-form" class="player-form hidden" autocomplete="off">
+                <div class="pf-title" id="pf-title">➕ 新增玩家</div>
+                <input id="pf-name" maxlength="10" placeholder="輸入名字，例如 Zoey">
+                <div id="pf-icons" class="pf-icons"></div>
+                <div class="pf-actions"><button type="submit" class="primary">確定 ✔️</button><button type="button" id="pf-cancel" class="ghost">取消</button></div>
+            </form>
+            <div class="start-actions">
+                <button id="btn-continue" class="primary big">繼續遊戲 🎮</button>
+                <button id="btn-new" class="secondary big">新遊戲 ✨</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 選擇主人 -->
+    <div id="menu-kid" class="overlay hidden">
+        <div class="panel">
+            <h1>請選擇代表你的小朋友！</h1>
+            <div class="grid kid-grid" id="kid-grid"></div>
+            <div class="menu-actions"><button id="kid-cancel" class="ghost hidden">返回樂園</button></div>
+        </div>
+    </div>
+
+    <!-- 領養寵物 -->
+    <div id="menu-adopt" class="overlay hidden">
+        <div class="panel wide">
+            <h1>領養小夥伴</h1>
+            <p class="sub" id="adopt-sub"></p>
+            <div class="grid pet-grid" id="pet-grid"></div>
+            <div class="tray">
+                <div id="tray-list"></div>
+                <div class="tray-actions">
+                    <button id="adopt-cancel" class="ghost">返回樂園</button>
+                    <button id="adopt-go" class="primary">出發去樂園！</button>
+                </div>
+            </div>
+            <div id="menu-toast"></div>
+        </div>
+    </div>
+
+    <!-- 遊戲內建的對話框 (取代瀏覽器的 confirm / prompt) -->
+    <div id="dialog" class="dialog-wrap hidden" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+        <div class="dialog-box">
+            <div id="dlg-title" class="dlg-title"></div>
+            <p id="dlg-text" class="dlg-text"></p>
+            <input id="dlg-input" class="dlg-input hidden" type="text" maxlength="8" autocomplete="off">
+            <div class="dlg-actions">
+                <button id="dlg-cancel" class="ghost">取消</button>
+                <button id="dlg-ok" class="primary">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 睡覺的畫面 -->
+    <div id="sleep-overlay" class="hidden">
+        <div class="sl-stars">✨ ⭐ ✨ 🌙 ✨ ⭐ ✨</div>
+        <div id="sl-title" class="sl-title"></div>
+        <div id="sl-sub" class="sl-sub"></div>
+        <div class="sl-zzz">Z z z</div>
+    </div>
+
+    <div id="loading">🐾 樂園準備中…</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+    <!-- 後製特效 (環境遮蔽 / 光暈 / 抗鋸齒)；載入失敗時自動改用一般畫質 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/SSAOShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/FXAAShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/math/SimplexNoise.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/SSAOPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="pet-audio.js"></script>
+    <script src="pet3d-models.js"></script>
+    <script src="pet3d-world.js"></script>
+    <script src="pet3d-weather.js"></script>
+    <script src="pet-build.js"></script>
+    <script src="pet-house.js"></script>
+    <script src="pet-birds.js"></script>
+    <script src="pet-balloon.js"></script>
+    <script src="pet-profiles.js"></script>
+    <script src="pet-game.js"></script>
+</body>
+</html>
