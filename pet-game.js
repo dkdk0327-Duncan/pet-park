@@ -3935,20 +3935,35 @@
         }
         return 'PETPARKJ:' + bytesToB64(bytes);
     }
+    // 從貼上的文字裡找出代碼 (容許空白、換行、引號、看不見的字元、全形冒號…)
+    function cleanCode(text) {
+        const t = String(text || '').replace(/[​-‍﻿ ]/g, '');
+        const i = t.toUpperCase().indexOf('PETPARK');
+        if (i < 0) return null;
+        const type = t.charAt(i + 7).toUpperCase();
+        let body = t.slice(i + 8).replace(/^\s*[:：]/, '').replace(/-/g, '+').replace(/_/g, '/').replace(/[^A-Za-z0-9+/=]/g, '');
+        body = body.replace(/=+$/, '');
+        while (body.length % 4) body += '=';
+        return { type, body };
+    }
     async function unpackProgress(code) {
-        code = String(code || '').replace(/\s+/g, '');
-        const m = code.match(/^PETPARK([ZJ]):([A-Za-z0-9+/=]+)$/);
-        if (!m) throw new Error('這不是寵物樂園的進度代碼');
-        let bytes = b64ToBytes(m[2]);
-        if (m[1] === 'Z') {
-            if (!window.DecompressionStream) throw new Error('這台裝置的瀏覽器太舊，請先更新系統');
-            bytes = await pipeBytes(bytes, new DecompressionStream('gzip'));
+        const c = cleanCode(code);
+        if (!c || (c.type !== 'Z' && c.type !== 'J')) throw new Error('找不到進度代碼：要貼上 PETPARK 開頭的那一整段喔');
+        if (c.body.length < 40) throw new Error('代碼太短了，好像只貼到一小段，請重新複製一次');
+        let bytes;
+        try { bytes = b64ToBytes(c.body); } catch (e) { throw new Error('代碼裡有看不懂的字，請重新複製一次'); }
+        if (c.type === 'Z') {
+            if (!window.DecompressionStream) throw new Error('這台裝置的系統太舊，請先更新 iPadOS / iOS 再試');
+            try { bytes = await pipeBytes(bytes, new DecompressionStream('gzip')); }
+            catch (e) { throw new Error('代碼不完整（可能少複製到一段），請在原本的裝置按「📋 複製代碼」重新複製'); }
         }
-        const d = JSON.parse(new TextDecoder().decode(bytes));
-        const s = JSON.parse(d.save);
-        if (!d.name || !s || !Array.isArray(s.pets)) throw new Error('代碼不完整，請重新複製一次');
+        let d, s;
+        try { d = JSON.parse(new TextDecoder().decode(bytes)); s = JSON.parse(d.save); }
+        catch (e) { throw new Error('代碼不完整（可能少複製到一段），請重新複製一次'); }
+        if (!d.name || !s || !Array.isArray(s.pets)) throw new Error('代碼裡沒有遊戲進度，請重新匯出一次');
         return d;
     }
+    function xferMsg(text, kind) { const el = $('xfer-msg'); el.textContent = text || ''; el.className = 'xfer-msg' + (kind ? ' ' + kind : ''); }
     function openXfer(opts) {
         $('xfer-title').textContent = opts.title;
         $('xfer-text').textContent = opts.text;
@@ -3956,6 +3971,8 @@
         ta.value = opts.code || '';
         ta.readOnly = !!opts.readOnly;
         ta.placeholder = opts.placeholder || '';
+        xferMsg(opts.code ? `代碼共 ${opts.code.length} 個字` : '');
+        ta.oninput = opts.readOnly ? null : () => { const c = cleanCode(ta.value); xferMsg(c ? `已貼上代碼（${c.body.length + 9} 個字），按「✅ 匯入」` : (ta.value.trim() ? '這段文字裡找不到 PETPARK 開頭的代碼' : ''), c ? '' : (ta.value.trim() ? 'err' : '')); };
         const box = $('xfer-actions');
         box.innerHTML = '';
         opts.buttons.forEach(b => {
@@ -3993,10 +4010,11 @@
             ta.focus(); ta.select(); ta.setSelectionRange(0, code.length);
             let ok = false;
             try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-            toast(ok ? '📋 已複製！可以貼到 LINE 或 email 了' : '請長按代碼 →「全選」→「拷貝」');
+            const m = ok ? '📋 已複製！可以貼到 LINE 或 email 了' : '請長按代碼 →「全選」→「拷貝」';
+            xferMsg(m, ok ? 'ok' : ''); toast(m);
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(code).then(() => toast('📋 已複製！可以貼到 LINE 或 email 了'), fallback);
+            navigator.clipboard.writeText(code).then(() => { xferMsg(`📋 已複製 ${code.length} 個字！可以貼到 LINE 或 email 了`, 'ok'); toast('📋 已複製！'); }, fallback);
         } else fallback();
     }
     function downloadXfer(p, code) {
@@ -4033,7 +4051,13 @@
     });
     async function doImport(code) {
         let d;
-        try { d = await unpackProgress(code); } catch (e) { toast('❌ ' + (e && e.message && /[一-鿿]/.test(e.message) ? e.message : '代碼不正確，請重新複製一次')); Audio3D.sfx('error'); return; }
+        xferMsg('讀取中…');
+        try { d = await unpackProgress(code); }
+        catch (e) {
+            const msg = '❌ ' + (e && e.message && /[一-鿿]/.test(e.message) ? e.message : '代碼不正確，請重新複製一次');
+            xferMsg(msg, 'err'); toast(msg); Audio3D.sfx('error');
+            return;
+        }
         closeXfer();
         const sm = (() => { try { const s = JSON.parse(d.save); return { day: s.dayCount || 1, pets: s.pets.length }; } catch (e) { return { day: 1, pets: 0 }; } })();
         const same = PetProfiles.list().find(p => p.name === d.name);
@@ -4374,6 +4398,8 @@
         updateSoundButtons();
     }
 
+    // 提示訊息移到最外層，開始畫面、選單畫面也看得到
+    document.body.appendChild($('toasts'));
     function init() {
         initSoundControls();
         applyQuality();

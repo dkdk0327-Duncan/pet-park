@@ -784,4 +784,9 @@ body.phone #adopt-go, body.phone #adopt-cancel, body.phone #kid-cancel { white-s
 .xfer-actions { flex-wrap: wrap; }
 .xfer-actions button { font-size: 15px; padding: 9px 16px; }
 #xfer { z-index: 88; }
+.xfer-msg { min-height: 18px; margin: -6px 0 10px; font-size: 14px; font-weight: bold; color: #8a7a68; }
+.xfer-msg.err { color: #e53935; }
+.xfer-msg.ok { color: #1e9e55; }
+/* 提示訊息在所有畫面都看得到 (開始畫面、選單也是) */
+body > #toasts { position: fixed; z-index: 96; }
 @media (max-width: 520px) { .pc-tools button { width: 26px; height: 24px; font-size: 12px; } .pc-tools { gap: 3px; } }
