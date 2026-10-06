@@ -141,6 +141,7 @@
             <h1>🐾 寵物領養樂園 🐾</h1>
             <p class="sub">誰要來玩呢？每個人的樂園進度都是分開的喔！</p>
             <div id="player-list" class="player-list"></div>
+            <button type="button" id="btn-import" class="import-link">📥 從別的裝置匯入進度</button>
             <form id="player-form" class="player-form hidden" autocomplete="off">
                 <div class="pf-title" id="pf-title">➕ 新增玩家</div>
                 <input id="pf-name" maxlength="10" placeholder="輸入名字，例如 Zoey">
@@ -190,6 +191,17 @@
                 <button id="dlg-cancel" class="ghost">取消</button>
                 <button id="dlg-ok" class="primary">確定</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 搬家：匯出 / 匯入進度 -->
+    <div id="xfer" class="dialog-wrap hidden" role="dialog" aria-modal="true" aria-labelledby="xfer-title">
+        <div class="dialog-box xfer-box">
+            <div id="xfer-title" class="dlg-title"></div>
+            <p id="xfer-text" class="dlg-text"></p>
+            <textarea id="xfer-code" class="xfer-code" spellcheck="false" autocomplete="off"></textarea>
+            <input id="xfer-file" type="file" accept=".txt,text/plain" class="hidden">
+            <div id="xfer-actions" class="dlg-actions xfer-actions"></div>
         </div>
     </div>
 

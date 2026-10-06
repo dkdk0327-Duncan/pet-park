@@ -3857,13 +3857,14 @@
             c.className = 'player-card' + (me && me.id === p.id ? ' on' : '');
             c.tabIndex = 0;
             c.innerHTML = `<span class="pc-icon"></span><b class="pc-name"></b><small>${sm ? `第 ${sm.day} 天・🐾 ${sm.pets} 隻` : '還沒開始玩'}</small>
-                <span class="pc-tools"><button type="button" class="pc-edit" title="改名字">✏️</button><button type="button" class="pc-del" title="刪除玩家">🗑️</button></span>`;
+                <span class="pc-tools"><button type="button" class="pc-out" title="匯出進度 (帶到別台裝置)">📤</button><button type="button" class="pc-edit" title="改名字">✏️</button><button type="button" class="pc-del" title="刪除玩家">🗑️</button></span>`;
             c.querySelector('.pc-icon').textContent = p.icon;
             c.querySelector('.pc-name').textContent = p.name;
             const choose = () => { PetProfiles.setCurrent(p.id); Audio3D.sfx('click'); renderPlayers(); };
             c.addEventListener('click', choose);
             c.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } });
             c.querySelector('.pc-edit').addEventListener('click', e => { e.stopPropagation(); openPlayerForm(p); });
+            c.querySelector('.pc-out').addEventListener('click', e => { e.stopPropagation(); Audio3D.sfx('click'); exportPlayer(p); });
             c.querySelector('.pc-del').addEventListener('click', async e => {
                 e.stopPropagation();
                 const yes = await askDialog({ title: '🗑️ 刪除玩家', text: `確定要刪除「${p.name}」嗎？${p.name} 的樂園進度會全部不見喔！`, okText: '刪除', cancelText: '取消' });
@@ -3917,6 +3918,142 @@
         renderPlayers();
     });
     $('pf-cancel').addEventListener('click', () => { $('player-form').classList.add('hidden'); });
+
+    // ---------- 搬家：把進度變成一段代碼，帶到別台裝置 ----------
+    //  代碼格式：PETPARKZ:<gzip+base64>  (不支援壓縮的瀏覽器用 PETPARKJ:<base64>)
+    const bytesToB64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
+    const b64ToBytes = b64 => { const s = atob(b64); const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; };
+    async function pipeBytes(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+    async function packProgress(p) {
+        let raw = null;
+        try { raw = localStorage.getItem(PetProfiles.saveKey(p.id)); } catch (e) { raw = null; }
+        if (!raw) return null;
+        const json = JSON.stringify({ v: 1, name: p.name, icon: p.icon, at: Date.now(), save: raw });
+        let bytes = new TextEncoder().encode(json);
+        if (window.CompressionStream) {
+            try { return 'PETPARKZ:' + bytesToB64(await pipeBytes(bytes, new CompressionStream('gzip'))); } catch (e) { /* 用沒壓縮的 */ }
+        }
+        return 'PETPARKJ:' + bytesToB64(bytes);
+    }
+    async function unpackProgress(code) {
+        code = String(code || '').replace(/\s+/g, '');
+        const m = code.match(/^PETPARK([ZJ]):([A-Za-z0-9+/=]+)$/);
+        if (!m) throw new Error('這不是寵物樂園的進度代碼');
+        let bytes = b64ToBytes(m[2]);
+        if (m[1] === 'Z') {
+            if (!window.DecompressionStream) throw new Error('這台裝置的瀏覽器太舊，請先更新系統');
+            bytes = await pipeBytes(bytes, new DecompressionStream('gzip'));
+        }
+        const d = JSON.parse(new TextDecoder().decode(bytes));
+        const s = JSON.parse(d.save);
+        if (!d.name || !s || !Array.isArray(s.pets)) throw new Error('代碼不完整，請重新複製一次');
+        return d;
+    }
+    function openXfer(opts) {
+        $('xfer-title').textContent = opts.title;
+        $('xfer-text').textContent = opts.text;
+        const ta = $('xfer-code');
+        ta.value = opts.code || '';
+        ta.readOnly = !!opts.readOnly;
+        ta.placeholder = opts.placeholder || '';
+        const box = $('xfer-actions');
+        box.innerHTML = '';
+        opts.buttons.forEach(b => {
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = b.cls || 'primary';
+            el.textContent = b.label;
+            el.addEventListener('click', b.onClick);
+            box.appendChild(el);
+        });
+        $('xfer').classList.remove('hidden');
+    }
+    const closeXfer = () => $('xfer').classList.add('hidden');
+    $('xfer').addEventListener('click', e => { if (e.target.id === 'xfer') closeXfer(); });
+
+    async function exportPlayer(p) {
+        const code = await packProgress(p);
+        if (!code) { toast(`${p.name} 還沒有進度可以匯出喔`); return; }
+        const sm = PetProfiles.summary(p.id) || { day: 1, pets: 0 };
+        openXfer({
+            title: `📤 匯出 ${p.icon} ${p.name} 的進度`,
+            text: `第 ${sm.day} 天・🐾 ${sm.pets} 隻。把下面這段代碼傳到另一台裝置（例如用 LINE 或 email 傳給自己），在那台裝置按「📥 從別的裝置匯入進度」貼上就好了！`,
+            code, readOnly: true,
+            buttons: [
+                { label: '📋 複製代碼', onClick: () => copyXfer(code) },
+                { label: '💾 存成檔案', cls: 'ghost', onClick: () => downloadXfer(p, code) },
+                { label: '關閉', cls: 'ghost', onClick: closeXfer },
+            ],
+        });
+        Audio3D.sfx('ding');
+    }
+    function copyXfer(code) {
+        const ta = $('xfer-code');
+        const fallback = () => {
+            ta.focus(); ta.select(); ta.setSelectionRange(0, code.length);
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            toast(ok ? '📋 已複製！可以貼到 LINE 或 email 了' : '請長按代碼 →「全選」→「拷貝」');
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(() => toast('📋 已複製！可以貼到 LINE 或 email 了'), fallback);
+        } else fallback();
+    }
+    function downloadXfer(p, code) {
+        try {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
+            const d = new Date();
+            a.download = `寵物樂園-${p.name}-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.txt`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            toast('💾 已存成檔案');
+        } catch (e) { toast('這裡不能存檔案，請改用「複製代碼」'); }
+    }
+    function openImport() {
+        openXfer({
+            title: '📥 從別的裝置匯入進度',
+            text: '在原本的裝置按玩家卡片上的 📤 匯出，把代碼傳過來，貼在下面（或選擇存好的檔案）。',
+            code: '', readOnly: false, placeholder: '把 PETPARK 開頭的代碼貼在這裡',
+            buttons: [
+                { label: '✅ 匯入', onClick: () => doImport($('xfer-code').value) },
+                { label: '📂 選擇檔案', cls: 'ghost', onClick: () => $('xfer-file').click() },
+                { label: '取消', cls: 'ghost', onClick: closeXfer },
+            ],
+        });
+        setTimeout(() => $('xfer-code').focus(), 50);
+    }
+    $('xfer-file').addEventListener('change', e => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => { $('xfer-code').value = String(r.result || '').trim(); doImport($('xfer-code').value); };
+        r.readAsText(f);
+    });
+    async function doImport(code) {
+        let d;
+        try { d = await unpackProgress(code); } catch (e) { toast('❌ ' + (e && e.message && /[一-鿿]/.test(e.message) ? e.message : '代碼不正確，請重新複製一次')); Audio3D.sfx('error'); return; }
+        closeXfer();
+        const sm = (() => { try { const s = JSON.parse(d.save); return { day: s.dayCount || 1, pets: s.pets.length }; } catch (e) { return { day: 1, pets: 0 }; } })();
+        const same = PetProfiles.list().find(p => p.name === d.name);
+        let target = null;
+        if (same) {
+            const yes = await askDialog({ title: `📥 已經有「${d.name}」了`, text: `要用匯入的進度（第 ${sm.day} 天・🐾 ${sm.pets} 隻）取代這台裝置上「${d.name}」的進度嗎？選「另外新增」會變成一個新玩家。`, okText: '取代', cancelText: '另外新增' });
+            if (yes) target = same;
+        }
+        if (!target) {
+            let name = d.name, k = 2;
+            while (PetProfiles.list().some(p => p.name === name)) name = `${d.name.slice(0, 7)}${k++}`;
+            target = PetProfiles.add(name, d.icon || '🧒');
+        }
+        try { localStorage.setItem(PetProfiles.saveKey(target.id), d.save); } catch (e) { toast('❌ 這台裝置存不了資料（可能是無痕模式）'); return; }
+        PetProfiles.setCurrent(target.id);
+        renderPlayers();
+        toast(`🎉 匯入完成！歡迎 ${target.icon} ${target.name}（第 ${sm.day} 天・🐾 ${sm.pets} 隻）`);
+        Audio3D.sfx('fanfare');
+    }
+    $('btn-import').addEventListener('click', () => { Audio3D.sfx('click'); openImport(); });
 
     $('btn-continue').addEventListener('click', () => {
         const me = PetProfiles.current();
