@@ -17,6 +17,7 @@
     //  資料
     // ---------------------------------------------------------
     const KIDS = [
+        { id: 'mine', label: '💄 我的造型' },   // 在「夢幻化妝間」打扮的樣子 (放第一個比較好找)
         { id: 'boy_cute', label: '可愛男孩' },
         { id: 'girl_cute', label: '可愛女孩' },
         { id: 'boy_handsome', label: '帥氣男生' },
@@ -3749,8 +3750,14 @@
                 c.className = 'card kid-card';
                 c.innerHTML = `<img alt="" src="${thumbnail('kid_' + k.id, () => buildKid(k.id))}"><b>${k.label}</b>`;
                 c.addEventListener('click', () => selectKid(k.id));
+                if (k.id === 'mine') c.classList.add('mine-card');
                 grid.appendChild(c);
             });
+        } else {
+            // 化妝間可能改過造型：「我的造型」的小圖每次重畫
+            delete thumbCache.kid_mine;
+            const img = grid.querySelector('.mine-card img');
+            if (img) img.src = thumbnail('kid_mine', () => buildKid('mine'));
         }
         $('kid-cancel').classList.toggle('hidden', !(fromPark && kid));
         showScreen('SELECT_KID');
@@ -4083,10 +4090,36 @@
         const me = PetProfiles.current();
         if (!me) { toast('👤 先建立一個玩家喔'); return; }
         balloon.setName(me.name);
+        if (pendingMakeup) { pendingMakeup = false; startWithMakeupLook(me); return; }
         if (!PetProfiles.summary()) { resetGame(); openKidMenu(false); return; }   // 新玩家：直接選小主人
         if (loadGame()) { showScreen('PARK'); maybeShowTip(); toast(`${me.icon} 歡迎回來，${me.name}！`); }
         else { toast('存檔讀取失敗，開始新遊戲'); resetGame(); openKidMenu(false); }
     });
+
+    // ---------------------------------------------------------
+    //  從化妝間按「🐾 帶去寵物樂園」過來：不用再選，直接用新造型當小主人
+    // ---------------------------------------------------------
+    let pendingMakeup = false;
+    function takeMakeupFlag() {
+        let v = null;
+        try { v = localStorage.getItem('makeup3dToPark'); localStorage.removeItem('makeup3dToPark'); } catch (e) { /* ignore */ }
+        if (!v) return null;
+        try { const o = JSON.parse(v); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; }
+    }
+    function startWithMakeupLook(me) {
+        balloon.setName(me.name);
+        if (PetProfiles.summary() && loadGame()) {
+            showScreen('PARK');
+            replaceKid('mine');
+            saveGame();
+        } else {
+            // 還沒有存檔：直接用新造型開始，接著選寵物
+            resetGame();
+            createKid('mine', 0, 3);
+            openAdoptMenu(false);
+        }
+        toast(`💄 ${me.name} 換上新造型囉！`);
+    }
     $('btn-new').addEventListener('click', async () => {
         const me = PetProfiles.current();
         if (!me) return;
@@ -4409,6 +4442,13 @@
         // 先選「誰要來玩」(每個玩家的進度分開)
         renderPlayers();
         showScreen('START_MENU');
+        const fm = takeMakeupFlag();
+        if (fm) {
+            if (fm.pid && PetProfiles.list().some(p => p.id === fm.pid)) { PetProfiles.setCurrent(fm.pid); renderPlayers(); }
+            const me = PetProfiles.current();
+            if (me) startWithMakeupLook(me);
+            else pendingMakeup = true; // 還沒有玩家：建立玩家、按開始後再換上
+        }
         requestAnimationFrame(loop);
     }
     init();

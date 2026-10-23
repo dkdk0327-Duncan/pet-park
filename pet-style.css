@@ -790,3 +790,11 @@ body.phone #adopt-go, body.phone #adopt-cancel, body.phone #kid-cancel { white-s
 /* 提示訊息在所有畫面都看得到 (開始畫面、選單也是) */
 body > #toasts { position: fixed; z-index: 96; }
 @media (max-width: 520px) { .pc-tools button { width: 26px; height: 24px; font-size: 12px; } .pc-tools { gap: 3px; } }
+
+/* 換主人：化妝間打扮的「我的造型」特別標出來 */
+.card.mine-card {
+    border-color: #ff6fa8 !important;
+    background: linear-gradient(160deg, #fff, #ffe6f1) !important;
+    box-shadow: 0 0 0 3px rgba(255, 111, 168, 0.35), 0 8px 18px rgba(255, 79, 139, 0.25) !important;
+}
+.card.mine-card b { color: #e23d7f; }

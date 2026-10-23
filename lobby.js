@@ -164,3 +164,113 @@
     }
     requestAnimationFrame(loop);
 })();
+
+// =============================================================
+//  夢幻化妝間主打卡片：用玩家自己的造型做 3D 預覽 (換表情、揮手)
+// =============================================================
+(function () {
+    const card = document.querySelector('.makeup-hero');
+    if (!card) return;
+    card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') location.href = 'makeup3d.html';
+    });
+    if (typeof THREE === 'undefined' || !window.Doll3D) return;
+    const stage = card.querySelector('.hero-stage');
+    const canvas = document.getElementById('makeup-canvas');
+    let renderer;
+    try {
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    } catch (e) { return; }
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.95;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xffc8dc, 0.9));
+    const key = new THREE.DirectionalLight(0xfff6f0, 1.0);
+    key.position.set(3, 6, 5);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    Object.assign(key.shadow.camera, { left: -2.5, right: 2.5, top: 3.5, bottom: -1 });
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0xffe8f4, 0.6);
+    rim.position.set(-2, 4, -5);
+    scene.add(rim);
+
+    // 粉紅舞台
+    const podium = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.6, 0.22, 64), new THREE.MeshStandardMaterial({ color: '#ffd0e3', roughness: 0.35 }));
+    podium.position.y = -0.11; podium.receiveShadow = true;
+    scene.add(podium);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.035, 10, 80), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.2 }));
+    ring.rotation.x = Math.PI / 2;
+    scene.add(ring);
+
+    // 沒玩過的話，用一個打扮好的範例
+    const SAMPLE = {
+        char: 'girl', skin: '#ffe3cf', hair: 'pigtails', hairColor: '#5a3418', eyeColor: '#5a3418', lashes: true,
+        shadow: '#c69cff', lip: '#ff3f8e', blush: '#ff8fb0', sparkle: true, outfit: 'gown', outfitColor: '#ff8fc0',
+        pattern: 'hearts', hat: 'crown', glasses: null, prop: 'wand', expr: 'smile',
+    };
+    const look = Object.assign({}, SAMPLE, Doll3D.loadLook() || {});
+    const doll = Doll3D.build(look, { detail: 'high' });
+    scene.add(doll.root);
+
+    function resize() {
+        const w = stage.clientWidth, h = stage.clientHeight;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        const dist = 7.2 * Math.max(1, 0.95 / camera.aspect);
+        camera.position.set(0, 2.1, dist);
+        camera.lookAt(0, 1.45, 0);
+        camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+    resize();
+    stage.classList.add('ready');
+
+    let visible = true;
+    if ('IntersectionObserver' in window) {
+        new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(stage);
+    }
+    const EXPRS = ['smile', 'happy', 'wink', 'laugh', 'kiss'];
+    let exprT = 2.5, exprI = 0, blinkT = 2, hop = 0;
+    let last = performance.now(), t = 0;
+    function loop(now) {
+        requestAnimationFrame(loop);
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now;
+        if (!visible || document.hidden) return;
+        t += dt;
+        // 慢慢轉，一下看左一下看右
+        doll.root.rotation.y = Math.sin(t * 0.5) * 0.6;
+        // 每隔一陣子換表情，跳一下
+        exprT -= dt;
+        if (exprT <= 0) {
+            exprI = (exprI + 1) % EXPRS.length;
+            look.expr = EXPRS[exprI];
+            doll.update(look);
+            exprT = 2.8;
+            hop = 1;
+        }
+        hop = Math.max(0, hop - dt * 2.2);
+        doll.root.position.y = Math.sin((1 - hop) * Math.PI) * 0.22 * (hop > 0 ? 1 : 0);
+        // 左手揮揮，右手拿東西時抬著
+        doll.armL.rotation.z = -2.0 - Math.sin(t * 8) * 0.35;
+        doll.armL.rotation.x = -0.3;
+        if (look.prop) { doll.armR.rotation.set(-0.95, 0, 0.18); doll.hand.quaternion.copy(doll.armR.quaternion).invert(); }
+        else doll.armR.rotation.z = 0.2 + Math.sin(t * 1.6) * 0.06;
+        doll.head.rotation.z = Math.sin(t * 0.9) * 0.08;
+        doll.body.position.y = doll.bodyY + Math.sin(t * 2.2) * 0.012;
+        // 眨眼
+        blinkT -= dt;
+        if (blinkT <= 0 && blinkT > -0.13) doll.redrawFace(true);
+        else if (blinkT <= -0.13) { doll.redrawFace(false); blinkT = 2 + Math.random() * 3; }
+        renderer.render(scene, camera);
+    }
+    requestAnimationFrame(loop);
+})();

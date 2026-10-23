@@ -58,6 +58,37 @@
             </div>
         </section>
 
+        <!-- 主打：全新改版 夢幻化妝間 -->
+        <section class="hero makeup-hero" onclick="location.href='makeup3d.html'" tabindex="0" role="link" aria-label="進入夢幻化妝間">
+            <div class="hero-glow" aria-hidden="true"></div>
+            <div class="hero-stage">
+                <canvas id="makeup-canvas" aria-hidden="true"></canvas>
+                <div class="hero-fallback" aria-hidden="true">👧💄🎀</div>
+                <span class="stage-tag">你的造型・即時 3D</span>
+            </div>
+            <div class="hero-info">
+                <div class="badges">
+                    <span class="badge new">全新改版</span>
+                    <span class="badge glam">💄 3D 化妝換裝</span>
+                </div>
+                <h2 class="hero-title">夢幻化妝間</h2>
+                <p class="hero-desc">精緻的 3D 大頭娃娃！幫她換髮型、畫眼影、擦口紅、穿上公主裙，再拍一張美美的照片～</p>
+                <ul class="features">
+                    <li>👧 女孩・男孩・小兔・小貓・小熊</li>
+                    <li>💇 10 種髮型・11 種髮色</li>
+                    <li>👁️ 眼影・口紅・腮紅・睫毛</li>
+                    <li>🖌️ 用手指在臉上畫畫</li>
+                    <li>👗 5 款衣服・6 種花紋</li>
+                    <li>😄 表情・動作・5 種背景</li>
+                    <li>🎯 客人點妝拿星星</li>
+                    <li>🐾 造型帶去寵物樂園</li>
+                </ul>
+                <div class="hero-actions">
+                    <button class="hero-btn">進入化妝間 💄</button>
+                </div>
+            </div>
+        </section>
+
         <h3 class="section-title">🎮 更多經典小遊戲</h3>
         <div class="games-grid">
             <a class="game-card" href="recycle.html" style="--c1:#6ec6ff; --c2:#2f8fd8;">
@@ -65,14 +96,6 @@
                 <div class="card-body">
                     <h2 class="game-name">環保小尖兵</h2>
                     <p class="game-desc">學習如何分類垃圾，成為愛護地球的小英雄！</p>
-                    <span class="play-btn">開始遊戲</span>
-                </div>
-            </a>
-            <a class="game-card" href="makeup3d.html" style="--c1:#ffb3d1; --c2:#ff6b9a;">
-                <div class="card-top"><span class="game-icon">🎀</span></div>
-                <div class="card-body">
-                    <h2 class="game-name">3D 可愛化妝換裝</h2>
-                    <p class="game-desc">幫女孩、男孩、小兔、小貓、小熊換髮型、化妝、穿新衣，還能拍照留念！</p>
                     <span class="play-btn">開始遊戲</span>
                 </div>
             </a>
@@ -98,6 +121,7 @@
     </main>
 
     <script src="lib/three/build/three.min.js"></script>
+    <script src="doll3d.js"></script>
     <script src="pet3d-models.js"></script>
     <script src="pet-profiles.js"></script>
     <script src="lobby.js"></script>

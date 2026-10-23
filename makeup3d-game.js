@@ -680,7 +680,8 @@
     $('task-close').addEventListener('click', () => { taskEl.classList.add('hidden'); sfx.tab(); });
     $('btn-park').addEventListener('click', () => {
         saveNow();
-        ls.set('makeup3dToPark', '1');
+        // 記下是哪個玩家的造型，樂園那邊會直接用這個玩家進去並換上
+        ls.set('makeup3dToPark', JSON.stringify({ pid: window.PetProfiles && PetProfiles.current() ? PetProfiles.current().id : null, t: Date.now() }));
         sfx.magic();
         toast('帶著新造型去寵物樂園囉 🐾');
         setTimeout(() => { location.href = 'pet.html'; }, 900);

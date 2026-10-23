@@ -859,10 +859,11 @@
     }
 
     // 從存檔讀造型 (寵物樂園用)
+    // 先找這個玩家的造型；沒有的話用「還沒建立玩家時」存的那份
     function loadLook() {
         try {
             const id = window.PetProfiles ? PetProfiles.saveKey().split(':').pop() : 'none';
-            return JSON.parse(localStorage.getItem('makeup3dLook:' + id) || 'null');
+            return JSON.parse(localStorage.getItem('makeup3dLook:' + id) || localStorage.getItem('makeup3dLook:none') || 'null');
         } catch (e) { return null; }
     }
 
