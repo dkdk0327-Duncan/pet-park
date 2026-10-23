@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#ffd9ea">
+    <title>夢幻化妝間</title>
+    <link rel="stylesheet" href="makeup3d-style.css">
+</head>
+<body>
+    <!-- 3D 舞台 (鋪滿整個畫面，選單浮在上面) -->
+    <canvas id="scene"></canvas>
+
+    <!-- 左上：回大廳、星星 -->
+    <header class="hud">
+        <a href="lobby.html" class="icon-btn glass" aria-label="回大廳" data-icon="back"></a>
+        <button id="btn-task" class="star-pill glass" aria-label="客人點妝">
+            <span class="star-ico">★</span><b id="star-badge">0</b><span class="pill-text">接任務</span>
+        </button>
+    </header>
+
+    <!-- 右上：工具列 -->
+    <nav id="dock" class="glass">
+        <button id="btn-view" class="icon-btn" data-icon="zoom" aria-label="看臉 / 看全身"></button>
+        <button id="btn-random" class="icon-btn" data-icon="shuffle" aria-label="隨機打扮"></button>
+        <button id="btn-clear" class="icon-btn" data-icon="reset" aria-label="全部卸下"></button>
+        <button id="btn-photo" class="icon-btn" data-icon="camera" aria-label="拍照"></button>
+        <button id="btn-park" class="icon-btn" data-icon="paw" aria-label="帶去寵物樂園"></button>
+        <button id="btn-sound" class="icon-btn" data-icon="sound" aria-label="音效"></button>
+    </nav>
+
+    <div id="hint" class="chip glass">拖曳轉圈圈・兩指放大</div>
+
+    <!-- 客人點妝 -->
+    <div id="task" class="quest glass hidden">
+        <div id="task-cust" class="avatar">🐻</div>
+        <div class="quest-body">
+            <div class="quest-head">
+                <b id="task-title">熊熊想要</b>
+                <button id="task-close" class="x-btn" aria-label="關閉" data-icon="close"></button>
+            </div>
+            <div id="task-reqs"></div>
+            <button id="task-next" class="pbtn small ghost">換一位客人</button>
+        </div>
+    </div>
+    <div id="toast" class="toast glass hidden"></div>
+
+    <!-- 衣櫃 -->
+    <aside id="panel" class="glass">
+        <div id="tabs"></div>
+        <div class="content">
+            <h2 id="panel-title">角色</h2>
+            <div id="items"></div>
+        </div>
+    </aside>
+
+    <!-- 拍照結果 -->
+    <div id="photo" class="modal hidden">
+        <div class="photo-card">
+            <img id="photo-img" alt="我的造型照">
+            <p>長按照片就可以存到相簿</p>
+            <div class="photo-btns">
+                <a id="photo-save" class="pbtn" download="我的造型.png">存檔</a>
+                <button id="photo-close" class="pbtn ghost">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading">
+        <div class="logo">夢幻化妝間</div>
+        <div class="logo-sub">MAKEUP STUDIO</div>
+        <div class="dots"><i></i><i></i><i></i></div>
+    </div>
+
+    <script src="lib/three/build/three.min.js"></script>
+    <script src="pet-profiles.js"></script>
+    <script src="doll3d.js"></script>
+    <script src="makeup3d-game.js"></script>
+</body>
+</html>

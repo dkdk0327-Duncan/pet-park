@@ -91,9 +91,9 @@
             rig.eyes.push(eye);
         });
     }
-    function addCheeks(head, x, y, z, r) {
+    function addCheeks(head, x, y, z, r, color) {
         [-1, 1].forEach(side => {
-            part('sphere', 0xff9fb0, [r, r * 0.6, r * 0.4], [x * side, y, z], head, { shadow: false });
+            part('sphere', color || 0xff9fb0, [r, r * 0.6, r * 0.4], [x * side, y, z], head, { shadow: false });
         });
     }
 
@@ -541,7 +541,60 @@
         chef:           { skin: 0xffdcb8, hair: 0x5a3a1a, style: 'short',    shirt: 0xffffff, pants: 0x37474f, scale: 1.05, chefHat: true, apron: 0xff6b9a },
     };
 
+    // 「我的造型」：讀 3D 化妝換裝 (makeup3d) 存的打扮，換成小主人的外觀
+    function makeupLook() {
+        try {
+            const id = window.PetProfiles ? PetProfiles.saveKey().split(':').pop() : 'none';
+            return JSON.parse(localStorage.getItem('makeup3dLook:' + id) || 'null');
+        } catch (e) { return null; }
+    }
+    const MAKEUP_HAIR = { short: 'short', long: 'long', pigtails: 'pigtails', ponytail: 'long', bun: 'bowl', braids: 'pigtails', bowl: 'bowl', curly: 'bowl', spiky: 'spiky' };
+    const MAKEUP_ACC = { bow: 'bow', crown: 'crown', tophat: 'hat', flowers: 'bow', strawhat: 'hat', catband: 'bow', star: 'bow', unicorn: 'crown' };
+    const MAKEUP_EARS = { bunny: 'bunny', kitty: 'cat', bear: 'bear' };
+    function makeupKidSpec() {
+        const L = makeupLook();
+        if (!L) return Object.assign({}, KID_SPECS.girl_cute);
+        const bare = L.outfit === 'dress' || L.outfit === 'gown' || L.outfit === 'tutu';
+        const s = {
+            skin: L.skin, hair: L.hair === 'none' || !MAKEUP_HAIR[L.hair] ? L.skin : L.hairColor,
+            style: MAKEUP_HAIR[L.hair] || 'bowl',
+            shirt: L.outfit === 'overall' ? '#ffffff' : L.outfitColor,
+            pants: bare ? L.skin : (L.outfit === 'overall' ? L.outfitColor : '#3f5f9f'),
+            // 用化妝間的娃娃時，scale 只用來算名牌、座位高度 (娃娃本身另外縮放)
+            scale: window.Doll3D ? 0.77 : 0.9, lip: L.lip, cheek: L.blush, ears: MAKEUP_EARS[L.char],
+            shades: L.glasses === 'sun',
+            acc: MAKEUP_ACC[L.hat] || (L.glasses && L.glasses !== 'sun' ? 'glasses' : null),
+        };
+        if (bare) s.dress = L.outfitColor;
+        return s;
+    }
+    Object.defineProperty(KID_SPECS, 'mine', { get: makeupKidSpec, enumerable: false });
+
+    // 「我的造型」直接用化妝間的娃娃 (doll3d.js 的簡化版，遠看用)，再接上小主人的骨架
+    const DOLL_PARK_SCALE = 0.62;
+    function buildDollKid() {
+        const L = window.Doll3D && Doll3D.loadLook();
+        if (!L) return null;
+        const root = new THREE.Group();
+        const rig = newRig('kid', root);
+        const inner = new THREE.Group();
+        inner.scale.setScalar(DOLL_PARK_SCALE);
+        rig.lift.add(inner);
+        const d = Doll3D.build(L, { detail: 'low' });
+        inner.add(d.root);
+        rig.body = d.body;
+        rig.head = d.head;
+        rig.legs = d.legs;
+        rig.arms = d.arms;
+        rig.eyes = d.eyes;
+        rig.baseBodyY = d.bodyY;
+        rig.legLen = 0.55;
+        root.userData.rig = rig;
+        return root;
+    }
+
     function buildKid(kidId) {
+        if (kidId === 'mine') { const dk = buildDollKid(); if (dk) return dk; }
         const k = KID_SPECS[kidId] || KID_SPECS.boy_cute;
         const root = new THREE.Group();
         const rig = newRig('kid', root);
@@ -580,10 +633,21 @@
         rig.head = head;
         part('sphere', k.skin, [0.3, 0.3, 0.28], [0, 0, 0], head);
         addEyes(head, 0.1, 0.0, 0.25, 0.042, rig);
-        addCheeks(head, 0.17, -0.08, 0.22, 0.05);
-        part('halfTorus', 0xc0504d, [0.06, 0.05, 0.05], [0, -0.1, 0.27], head, { rot: [0, 0, Math.PI], shadow: false });
-        // 耳朵
-        [-1, 1].forEach(sd => part('sphere', k.skin, [0.05, 0.08, 0.05], [0.29 * sd, 0, 0], head));
+        if (k.cheek !== null) addCheeks(head, 0.17, -0.08, 0.22, 0.05, k.cheek);
+        part('halfTorus', k.lip || 0xc0504d, [0.06, 0.05, 0.05], [0, -0.1, 0.27], head, { rot: [0, 0, Math.PI], shadow: false });
+        // 耳朵 (我的造型可能是小動物)
+        if (k.ears === 'bunny') {
+            [-1, 1].forEach(sd => {
+                part('sphere', k.skin, [0.06, 0.22, 0.04], [0.11 * sd, 0.45, -0.03], head, { rot: [0, 0, -0.15 * sd] });
+                part('sphere', 0xffb8cc, [0.035, 0.16, 0.02], [0.11 * sd, 0.45, 0.0], head, { rot: [0, 0, -0.15 * sd] });
+            });
+        } else if (k.ears === 'cat') {
+            [-1, 1].forEach(sd => part('cone', k.skin, [0.09, 0.14, 0.06], [0.17 * sd, 0.3, 0], head, { rot: [0, 0, -0.5 * sd] }));
+        } else if (k.ears === 'bear') {
+            [-1, 1].forEach(sd => part('sphere', k.skin, [0.08, 0.08, 0.05], [0.21 * sd, 0.24, -0.02], head));
+        } else {
+            [-1, 1].forEach(sd => part('sphere', k.skin, [0.05, 0.08, 0.05], [0.29 * sd, 0, 0], head));
+        }
 
         // 頭髮
         const hc = k.hair;
@@ -626,6 +690,7 @@
         convertMaterials(root, 'fur');
         root.scale.setScalar(k.scale * 1.1);
         root.userData.rig = rig;
+        if (k.acc) setAccessory(root, k.acc);
         return root;
     }
 
